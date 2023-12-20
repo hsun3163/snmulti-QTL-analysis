@@ -1,0 +1,52 @@
+hosts:
+  localhost:
+    address: localhost
+    paths:
+      home: /hpc/users/{user_name}
+  # This HPC queue is called "premium". 
+  # You can change it to a name that makes sense to you for your HPC system
+  premium:
+    # You can modify it to your context although whatever written here does not matter to running jobs
+    description: Mount Sinai Minerva HPC
+    address: localhost
+    paths:
+      home: /hpc/users/{user_name}
+    queue_type: pbs
+    status_check_interval: 30
+    # Below you can define some variables that goes into the `task_template`
+    partition: "BSUB -q premium"
+    # This is the HPC job template that you should adapt for your own system.
+    # In addition to variables defined above, the variables in `{}` are reserved SoS variables
+    # that can be used as is when you adapt it to compose your own template
+    task_template: |
+      #!/bin/bash
+      #{partition}
+      #BSUB -P acc_CommonMind
+      #BSUB -W { walltime.rsplit(':', 1)[0] } #Minerva BSUB uses hh:mm format
+      #BSUB -J {task}
+      #BSUB -oo %J.out
+      #BSUB -eo %J.err
+      #BSUB -n {cores}
+      #BSUB -R "span[hosts=1] rusage[mem={mem//10**9}GB]"
+
+      # Below is your usual computational code
+      source /hpc/users/sunh14/.bashrc
+      set -e
+      cd {workdir}
+      sos execute {task} -v {verbosity} -s {sig_mode}
+    max_running_jobs: 5000
+    max_mem: 180G
+    max_walltime: '944:00:00'
+    # Configure of job submission, status and deletion command
+    submit_cmd: bsub < {job_file}
+    status_cmd: bjobs {job_id}
+    kill_cmd: bkill {job_id}
+    submit_cmd_output: 'Job <{job_id}> is submitted to queue <{queue}>.'
+  # This is another HPC queue that shares most of the configuration with the above queue
+  # But needs some slight adjustments specific for the queue
+  express: 
+    based_on: hosts.premium
+    partition: "BSUB -q express"
+    max_walltime: '6:00:00'
+
+localhost: localhost
